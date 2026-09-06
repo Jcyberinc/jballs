@@ -19,6 +19,9 @@ public class BallContainer extends JApplet{
 
     public void paint(Graphics g) {
         Graphics2D g2 = (Graphics2D) g;
-        g2.drawString("jballs 0.0002", 67, 67);
+        g2.setPaint(Color.white);
+        g2.fill3DRect(0, 0, 499, 499, true);
+        g2.setPaint(Color.MAGENTA);
+        g2.drawString(jballs.Main.version_string, 67, 67);
     }
 }

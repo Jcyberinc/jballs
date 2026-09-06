@@ -6,3 +6,4 @@ in the style of [Ham's Ball Battles](https://hamsballbattles.com/) and [Earclack
 This is mostly an excuse to practice my rusty Human Programming Skills™ and reassure myself
 that I am somewhat competent at Java.
 
+![Screenshot](assets/win7.png)

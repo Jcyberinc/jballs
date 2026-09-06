@@ -10,10 +10,12 @@ import javax.swing.JFrame;
 import jballs.display.BallContainer;
 
 public class Main {
+	
+	public static String version_string = "jballs 0.0003";
 
 	public static void main(String[] args) {
-		System.out.println("jballs 0.0002");
-        JFrame f = new JFrame("jballs 0.0002");
+		System.out.println(version_string);
+        JFrame f = new JFrame(version_string);
         f.addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent e) {System.exit(0);}
         });
