@@ -1,29 +1,41 @@
 package jballs;
 
-import java.awt.Dimension;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import javax.swing.JFrame;
+import com.almasb.fxgl.app.GameApplication;
+import com.almasb.fxgl.settings.GameSettings;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
 
-import jballs.display.BallContainer;
 
-public class Main {
+public class Main extends GameApplication {
 	
-	public static String version_string = "jballs 0.0003";
+	public static String version_string = "jballs version 0.0004";
 
-	public static void main(String[] args) {
-		System.out.println(version_string);
-        JFrame f = new JFrame(version_string);
-        f.addWindowListener(new WindowAdapter() {
-            public void windowClosing(WindowEvent e) {System.exit(0);}
-        });
-        BallContainer panel = new BallContainer();
-        f.getContentPane().add("Center", panel);
-        panel.init();
-        f.pack();
-        f.setSize(new Dimension(500,500));
-        f.setVisible(true);
-	}
+    @Override
+    protected void initSettings(GameSettings settings) {
+        settings.setWidth(500);
+        settings.setHeight(500);
+        settings.setTitle("jballs");
+        settings.setVersion("0.0004");
+    }
 
+    @Override
+    protected void initGame() {
+    }
+
+    @Override
+    protected void initUI() {
+        Text version = new Text();
+        version.setTranslateX(50); // x = 50
+        version.setTranslateY(100); // y = 100
+
+        version.setText(version_string);
+        version.setFill(Color.MAGENTA);
+
+        getGameScene().addUINode(version); // add to the scene graph
+    }
+
+    public static void main(String[] args) {
+    	System.out.println(version_string);
+        launch(args);
+    }
 }
-

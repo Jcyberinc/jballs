@@ -2,5 +2,12 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="/home/sb0rp/jballs/fxgl-0.5.4-uber.jar"/>
+	<classpathentry kind="lib" path="/home/sb0rp/.local/share/javafx/current/lib/javafx.base.jar"/>
+	<classpathentry kind="lib" path="/home/sb0rp/.local/share/javafx/current/lib/javafx.graphics.jar"/>
+	<classpathentry kind="lib" path="/home/sb0rp/.local/share/javafx/current/lib/javafx.controls.jar"/>
+	<classpathentry kind="lib" path="/home/sb0rp/.local/share/javafx/current/lib/javafx.media.jar"/>
+	<classpathentry kind="lib" path="/home/sb0rp/.local/share/javafx/current/lib/javafx.fxml.jar"/>
+	<classpathentry kind="lib" path="/home/sb0rp/.local/share/javafx/current/lib/javafx.swing.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
