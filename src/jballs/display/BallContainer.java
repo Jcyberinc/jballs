@@ -3,10 +3,9 @@ package jballs.display;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import javax.swing.JApplet;
+import javax.swing.JPanel;
 
-@SuppressWarnings("removal")
-public class BallContainer extends JApplet{
+public class BallContainer extends JPanel{
     final static Color bg = Color.white;
     final static Color fg = Color.black;
     

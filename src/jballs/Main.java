@@ -3,8 +3,6 @@ package jballs;
 import java.awt.Dimension;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-
-import javax.swing.JApplet;
 import javax.swing.JFrame;
 
 import jballs.display.BallContainer;
@@ -19,9 +17,9 @@ public class Main {
         f.addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent e) {System.exit(0);}
         });
-        JApplet applet = new BallContainer();
-        f.getContentPane().add("Center", applet);
-        applet.init();
+        BallContainer panel = new BallContainer();
+        f.getContentPane().add("Center", panel);
+        panel.init();
         f.pack();
         f.setSize(new Dimension(500,500));
         f.setVisible(true);
