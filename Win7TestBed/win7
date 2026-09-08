@@ -52,6 +52,15 @@
 # The jar is compiled with --release 8 because Windows 7 can only run Java 8;
 # the host JDK 25 would emit class files no Win7 JRE can load. module-info.java
 # is skipped: JPMS doesn't exist in 8 and a classpath jar has no use for it.
+#
+# Dependencies are read from the project's Eclipse .classpath, so the IDE build
+# and this one cannot drift. Everything except the JavaFX SDK jars is unpacked
+# into the jar, because run.bat launches it with `java -jar`, which ignores any
+# -cp. JavaFX is deliberately left out: the guest's Liberica "Full" JRE ships
+# its own Java 8 build of it, and shipping a second copy -- especially one built
+# for Linux -- would only shadow it. The host compiles against the matching
+# JavaFX 8 from ~/.local/share/liberica-jdk8, so an API Windows 7 lacks now
+# fails at build time instead of in the guest.
 
 set -uo pipefail
 
@@ -171,8 +180,47 @@ cmd_export() {
   mapfile -t sources < <(find "$src" -name '*.java' ! -name 'module-info.java')
   [[ ${#sources[@]} -gt 0 ]] || die "no .java sources under $src"
 
+  # Compile against exactly the jars Eclipse uses, straight out of .classpath.
+  local -a cp_entries=() bundle=()
+  local lib
+  while IFS= read -r lib; do
+    [[ -n $lib ]] || continue
+    [[ $lib == /* ]] || lib="$project/$lib"
+    [[ -f $lib ]] || { note "skipping missing lib: $lib"; continue; }
+    cp_entries+=("$lib")
+    # JavaFX is compile-only -- see the note at the top of this script. Matched
+    # by filename so it holds for a JavaFX SDK jar set and a JDK 8 jfxrt.jar
+    # alike.
+    case "${lib##*/}" in
+      jfxrt.jar | javafx*.jar) ;;
+      *) bundle+=("$lib") ;;
+    esac
+  done < <(sed -n 's/.*kind="lib"[^>]*path="\([^"]*\)".*/\1/p' "$project/.classpath" 2>/dev/null)
+
+  local -a cpflag=()
+  if ((${#cp_entries[@]})); then
+    local cp; cp=$(IFS=:; printf '%s' "${cp_entries[*]}")
+    cpflag=(-cp "$cp")
+  fi
+
+  # Fold the runtime jars in first, so the compiler's output lands on top of
+  # them and project classes always win. Signature files are dropped: they stop
+  # matching the moment the archive is repacked.
+  local dep out
+  for dep in "${bundle[@]}"; do
+    # unzip prints "caution: excluded filename not matched" for any -x pattern
+    # that hits nothing, which is the normal case for an unsigned jar. Hold the
+    # output and only show it if the unpack actually failed.
+    if ! out=$(unzip -qo "$dep" -d "$build" \
+      -x 'META-INF/*.SF' 'META-INF/*.DSA' 'META-INF/*.RSA' 'META-INF/MANIFEST.MF' 'module-info.class' 2>&1); then
+      printf '%s\n' "$out" >&2
+      die "failed to unpack $dep"
+    fi
+  done
+  ((${#bundle[@]})) && note "bundled ${#bundle[@]} dependency jar(s)"
+
   note "compiling ${#sources[@]} source(s) for Java 8, main class $main"
-  javac --release 8 -nowarn -d "$build" "${sources[@]}" || die "compile failed"
+  javac --release 8 -nowarn "${cpflag[@]}" -d "$build" "${sources[@]}" || die "compile failed"
 
   # Eclipse copies non-source files sitting in the source tree into the output;
   # match that so images and .properties files still resolve at runtime.
@@ -183,14 +231,64 @@ cmd_export() {
 
   cat >"$SHARE_DIR/run.bat" <<BAT
 @echo off
-rem Launch $name.jar with whichever Java the VM has.
+rem Launch $name.jar. Three things this has to work around:
+rem
+rem  * FXGL writes logs\\ and system\\fxgl.bundle relative to the working
+rem    directory, so it cannot run from the read-only CD. The jar is copied to
+rem    %LOCALAPPDATA% and run from there.
+rem  * The VM has no 3D acceleration at all -- plain std VGA, and Windows 7
+rem    never gets a WDDM driver -- so JavaFX is forced onto its software
+rem    pipeline. The Direct3D one it prefers does not exist here.
+rem  * A BellSoft Liberica "Full" JRE is required: stock OpenJDK 8 builds
+rem    (Adoptium included) ship no JavaFX and FXGL cannot start without it.
+rem    BellSoft is checked before PATH so a leftover Adoptium cannot win.
 setlocal
-set JAR=%~dp0$name.jar
-set JAVA=java
-where java >nul 2>&1 || set JAVA="%ProgramFiles%\\Eclipse Adoptium\\jre-8.0.504.1-hotspot\\bin\\java.exe"
-%JAVA% -jar "%JAR%"
-if errorlevel 1 pause
+set "JAVA="
+set "JFX="
+for /d %%D in ("%ProgramFiles%\\BellSoft\\*") do (
+  if exist "%%D\\bin\\java.exe" (
+    set "JAVA=%%D\\bin\\java.exe"
+    if exist "%%D\\jre\\lib\\ext\\jfxrt.jar" set "JFX=1"
+    if exist "%%D\\lib\\ext\\jfxrt.jar" set "JFX=1"
+  )
+)
+if not defined JAVA (
+  where java >nul 2>&1 && set "JAVA=java"
+)
+if not defined JAVA (
+  echo No Java found -- install bellsoft-jre8u504-full.msi from this disc first.
+  pause
+  exit /b 1
+)
+if not defined JFX (
+  echo.
+  echo   WARNING: this Java has no JavaFX - jfxrt.jar was not found next to it.
+  echo   FXGL cannot start without it. Install bellsoft-jre8u504-full.msi from
+  echo   this disc; Adoptium/Temurin JRE 8 does NOT bundle JavaFX.
+  echo.
+)
+set "WORK=%LOCALAPPDATA%\\$name"
+if not exist "%WORK%" mkdir "%WORK%"
+copy /y "%~dp0$name.jar" "%WORK%\\$name.jar" >nul
+set "LOG=%WORK%\\run.log"
+echo Java: %JAVA%
+echo Work: %WORK%
+echo.
+pushd "%WORK%"
+"%JAVA%" -Dprism.order=sw -Dprism.verbose=true -jar "$name.jar" > "%LOG%" 2>&1
+set "RC=%ERRORLEVEL%"
+popd
+echo Exit code: %RC%
+echo ---------------------- output ----------------------
+type "%LOG%"
+echo ----------------------------------------------------
+echo Saved to %LOG%
+pause
 BAT
+
+  # cmd.exe parses multi-line for/if blocks unreliably out of a file with Unix
+  # line endings, and run.bat now uses them. Ship it as CRLF.
+  sed -i 's/\r*$/\r/' "$SHARE_DIR/run.bat"
 
   build_share_iso
   note "exported $name.jar ($(du -h "$SHARE_DIR/$name.jar" | cut -f1)) -> $SHARE_ISO"
